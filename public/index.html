@@ -1,18 +1,20 @@
 <!DOCTYPE html>
 <html>
 <head>
-<title>Basic Start</title>
+<title>Food Game</title>
 <script src="/socket.io/socket.io.js"></script>
 <script type="text/javascript" src="index.js"></script>
 </head>
 <body>
 
-<h1>This is a Heading</h1>
+<h1>Make lobby!</h1>
 
-<input type="text" id="inputText">
-<input type="button" value="SUBMIT" onClick="sendInputText()">
+<div>
+    <label type=text> enter name: </label>
+    <input type="text" id="hostName">
+</div>
 
-<p id="pText"></p>
+<input type="button" value="Create Room" onClick="createRoom()">
 
 </body>
 </html>

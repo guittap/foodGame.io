@@ -1,4 +1,4 @@
-//killall -9 node
+//killall -9 node if error
 
 var express = require('express');
 // Create the app
@@ -17,37 +17,82 @@ function listen() {
 
 app.use(express.static('public'));
 
+//if there is url parameter
+app.get("/:word", function(req, res) { 
+  let word = req.params.word;
+  res.sendFile( __dirname + "/public/lobby.html");
+});
+
+
 // WebSocket Portion
 // WebSockets work with the HTTP server
 var io = require('socket.io')(server);
+var rooms = {};
+
+class foodRoom
+{
+  constructor()
+  {
+    this.gameStarted=false;
+    this.host;
+    this.players=[];
+  }
+}
 
 // Register a callback function to run when we have an individual connection
 // This is run for each individual user that connects
-io.sockets.on('connection',
-  // We are given a websocket object in our function
-  function (socket) {
-  
-    console.log("We have a new client: " + socket.id);
+io.sockets.on('connection', function (socket) 
+{
+  socket.on('joinroom', function(data) 
+  {
 
-    socket.broadcast.emit('new', socket.id);
+    //maybe i should do a limbo phase before joining room?
 
-    socket.on('message',
-      function(data) {
-        // Data comes in as whatever was sent, including objects
-        console.log("Received: 'message' " + data);
-      
-        // Send it to all other clients
-        socket.broadcast.emit('message', data);
-        
-        // This is a way to send to everyone including sender
-        // io.sockets.emit('message', "this goes to everyone");
+    this.join(data.room); //socket io join function
 
-      }
-    );
-    
+    //set name
+    socket.nickname=data.nickname;
+    if (typeof rooms[data.room] === 'undefined') //then player creating is the host!
+    {
+      rooms[data.room] = new foodRoom(); 
+      rooms[data.room].host = socket.id; //set the host to host's id
+      rooms[data.room].players.push({nickname: data.nickname, id: socket.id}); //add player to game
+      io.to(data.room).emit("lobbyUpdate", rooms[data.room]); //give clients new game state!!
+
+      socket.emit('goodToJoin', true); //true in regards to isHost
+    }
+    else if (rooms[data.room].gameStarted == false) //then it's ok to join!
+    {
+      socket.emit('goodToJoin', false); //false in regards to isHost
+
+      socket.on('nameMessage', function(name)
+      {
+        console.log("name received");
+        rooms[data.room].players.push({nickname: name, id: socket.id}); //add player to game
+        io.to(data.room).emit("lobbyUpdate", rooms[data.room]); //give clients new game state!!
+      });
+    }
+    else //it's not ok to join... 
+    {
+      //TODO: kick player! (maybe give a message as to why?? idk)
+    }
+
+    //TODO: if here then update user's lists! because some joined or attempted to...
+
+    //io.to(data.room).emit("new user", rooms[data.room].count); 
+
     socket.on('disconnect', function() {
-      console.log("Client has disconnected");
+      //splice to remove
+      for (let i=rooms[data.room].players.length-1; i>=0; i--)
+      {
+        if (rooms[data.room].players[i].id == socket.id)
+        {
+          rooms[data.room].players.splice(i, 1); //removes from list!
+          io.to(data.room).emit("lobbyUpdate", rooms[data.room]); //give clients new game state!!
+        }
+      }
     });
-  }
+  });
+}
 );
 
